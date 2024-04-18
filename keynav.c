@@ -76,6 +76,13 @@ typedef struct wininfo {
   int grid_rows;
   int grid_cols;
   int border_thickness;
+  float outerRed;
+  float outerGreen;
+  float outerBlue;
+  float innerRed;
+  float innerGreen;
+  float innerBlue;
+
   int center_cut_size;
   int curviewport;
 } wininfo_t;
@@ -95,7 +102,7 @@ typedef struct viewport {
   Window root;
 } viewport_t;
 
-static wininfo_t wininfo;
+static wininfo_t wininfo = {.outerRed = 255, .outerGreen = 255, .outerBlue = 255};
 static mouseinfo_t mouseinfo;
 static viewport_t *viewports;
 static int nviewports = 0;
@@ -142,6 +149,7 @@ void cmd_cut_left(char *args);
 void cmd_cut_right(char *args);
 void cmd_cut_up(char *args);
 void cmd_daemonize(char *args);
+void cmd_colors(char *args);
 void cmd_doubleclick(char *args);
 void cmd_drag(char *args);
 void cmd_end(char *args);
@@ -225,6 +233,7 @@ dispatch_t dispatch[] = {
   // Other commands.
   "loadconfig", cmd_loadconfig,
   "daemonize", cmd_daemonize,
+  "colors", cmd_colors,
   "sh", cmd_shell,
   "start", cmd_start,
   "end", cmd_end,
@@ -604,6 +613,8 @@ int parse_config_line(char *orig_line) {
     handle_commands(keyseq);
   } else if (strcmp(keyseq, "loadconfig") == 0) {
     handle_commands(keyseq);
+  } else if (strcmp(keyseq, "colors") == 0) {
+    cmd_colors(tokctx);
   } else {
     keycode = parse_keycode(keyseq);
     if (keycode == 0) {
@@ -683,7 +694,7 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
 
   if (draw) {
     cairo_new_path(canvas_cairo);
-    cairo_set_source_rgb(canvas_cairo, 1, 1, 1);
+    cairo_set_source_rgb(canvas_cairo, wininfo.outerRed, wininfo.outerGreen, wininfo.outerBlue);
     cairo_rectangle(canvas_cairo, 0, 0, w, h);
     cairo_set_line_width(canvas_cairo, wininfo.border_thickness);
     cairo_fill(canvas_cairo);
@@ -764,7 +775,7 @@ void updategrid(Window win, struct wininfo *info, int apply_clip, int draw) {
 #endif
 
   if (draw) {
-    cairo_set_source_rgba(canvas_cairo, 0, 0, 0, 1.0);
+    cairo_set_source_rgba(canvas_cairo, wininfo.innerRed, wininfo.innerGreen, wininfo.innerBlue, 1.0);
     cairo_set_line_width(canvas_cairo, 1);
     cairo_stroke(canvas_cairo);
 
@@ -1206,6 +1217,25 @@ void cmd_click(char *args) {
     xdo_click_window(xdo, CURRENTWINDOW, button);
   else
     fprintf(stderr, "Negative mouse button is invalid: %d\n", button);
+}
+
+void cmd_colors(char *args) {
+  float outerRed = 0.0, outerGreen = 1.0, outerBlue = 0.0;
+  float innerRed = 0.0, innerGreen = 1.0, innerBlue = 0.0;
+
+  int count = sscanf(args, "%f,%f,%f,%f,%f,%f", &outerRed, &outerGreen, &outerBlue, &innerRed, &innerGreen, &innerBlue);
+  if (count != 6) {
+    fprintf(stderr,
+            "Invalid usage of 'colors' (expected 6 float arguments)\n");
+    fprintf(stderr, "Got: %d\n",  count);
+  }
+  wininfo.outerRed = outerRed;
+  wininfo.outerGreen = outerGreen;
+  wininfo.outerBlue = outerBlue;
+
+  wininfo.innerRed = innerRed;
+  wininfo.innerGreen = innerGreen;
+  wininfo.innerBlue = innerBlue;
 }
 
 void cmd_doubleclick(char *args) {
